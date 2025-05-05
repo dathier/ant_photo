@@ -182,7 +182,7 @@ export default function DashboardPage() {
 
   return (
     <div className="container py-10">
-      <div className="flex justify-center mb-6">
+      {/* <div className="flex justify-center mb-6">
         <Image
           src="/logo.png"
           alt="公司标志"
@@ -190,7 +190,7 @@ export default function DashboardPage() {
           height={60}
           priority
         />
-      </div>
+      </div> */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl">员工照片管理</CardTitle>
