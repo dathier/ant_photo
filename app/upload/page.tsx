@@ -251,8 +251,8 @@ export default function UploadPage() {
       </div>
       <Card className="w-full max-w-md border-none shadow-lg mt-12">
         <CardHeader className="text-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-t-lg">
-          <CardTitle className="text-2xl font-bold">员工照片上传</CardTitle>
-          <CardDescription className="text-neutral-100 text-md">
+          <CardTitle className="text-3xl font-bold">员工照片上传</CardTitle>
+          <CardDescription className="text-white text-lg">
             请填写信息并上传您的照片
           </CardDescription>
         </CardHeader>

@@ -58,7 +58,11 @@ class QiniuUploader {
 
   // Get public URL without authentication
   getPublicUrl(key: string) {
-    return `${this.domain}/${encodeURIComponent(key)}`;
+    // 获取原始URL
+    const originalUrl = `${this.domain}/${encodeURIComponent(key)}`;
+
+    // 返回代理URL
+    return `/api/image-proxy?url=${encodeURIComponent(originalUrl)}`;
   }
 
   // For backward compatibility - now returns public URL

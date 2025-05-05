@@ -146,7 +146,13 @@ export default function DashboardPage() {
   };
 
   const handleDownload = (photo: PhotoWithEmployee) => {
-    window.open(photo.url, "_blank");
+    // 创建一个临时链接
+    const link = document.createElement("a");
+    link.href = photo.url;
+    link.download = `${photo.employee.employeeId}_${photo.employee.name}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleStatusChange = async (
@@ -175,8 +181,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="container py-4 mx-auto">
-      {/* <div className="flex justify-center mb-6">
+    <div className="container py-10">
+      <div className="flex justify-center mb-6">
         <Image
           src="/logo.png"
           alt="公司标志"
@@ -184,7 +190,7 @@ export default function DashboardPage() {
           height={60}
           priority
         />
-      </div> */}
+      </div>
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl">员工照片管理</CardTitle>
