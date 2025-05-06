@@ -64,9 +64,11 @@ import {
   updatePhotoStatus,
 } from "@/lib/actions";
 import type { PhotoWithEmployee } from "@/lib/types";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { toast } = useToast();
   const [photos, setPhotos] = useState<PhotoWithEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,6 +79,7 @@ export default function DashboardPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [photoToDelete, setPhotoToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Search and filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,6 +115,11 @@ export default function DashboardPage() {
       setTotalPages(Math.ceil(result.total / pageSize));
     } catch (error) {
       console.error("Failed to fetch photos:", error);
+      toast({
+        title: "获取照片失败",
+        description: "请刷新页面重试",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -135,13 +143,44 @@ export default function DashboardPage() {
   const confirmDelete = async () => {
     if (photoToDelete) {
       try {
-        await deletePhoto(photoToDelete);
-        fetchPhotos();
+        setIsDeleting(true);
+        const result = await deletePhoto(photoToDelete);
+
+        if (result.success) {
+          toast({
+            title: "删除成功",
+            description: "照片已成功删除",
+          });
+
+          // 从本地状态中移除已删除的照片
+          setPhotos(photos.filter((photo) => photo.id !== photoToDelete));
+
+          // 如果当前页面没有照片了，且不是第一页，则返回上一页
+          if (photos.length === 1 && currentPage > 1) {
+            setCurrentPage((prev) => prev - 1);
+          } else {
+            // 否则重新获取当前页面的照片
+            fetchPhotos();
+          }
+        } else {
+          toast({
+            title: "删除失败",
+            description: result.message || "无法删除照片，请重试",
+            variant: "destructive",
+          });
+        }
       } catch (error) {
         console.error("Failed to delete photo:", error);
+        toast({
+          title: "删除失败",
+          description: "发生错误，请重试",
+          variant: "destructive",
+        });
+      } finally {
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+        setPhotoToDelete(null);
       }
-      setDeleteDialogOpen(false);
-      setPhotoToDelete(null);
     }
   };
 
@@ -160,10 +199,36 @@ export default function DashboardPage() {
     status: "processed" | "unprocessed"
   ) => {
     try {
-      await updatePhotoStatus(id, status);
-      fetchPhotos();
+      const result = await updatePhotoStatus(id, status);
+
+      if (result.success) {
+        // 更新本地状态
+        setPhotos(
+          photos.map((photo) =>
+            photo.id === id ? { ...photo, status } : photo
+          )
+        );
+
+        toast({
+          title: "状态更新成功",
+          description: `照片已标记为${
+            status === "processed" ? "已处理" : "未处理"
+          }`,
+        });
+      } else {
+        toast({
+          title: "状态更新失败",
+          description: result.message || "无法更新状态，请重试",
+          variant: "destructive",
+        });
+      }
     } catch (error) {
       console.error("Failed to update status:", error);
+      toast({
+        title: "状态更新失败",
+        description: "发生错误，请重试",
+        variant: "destructive",
+      });
     }
   };
 
@@ -181,7 +246,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="container py-10">
+    <div className="container py-4 mx-auto">
       {/* <div className="flex justify-center mb-6">
         <Image
           src="/logo.png"
@@ -489,8 +554,14 @@ export default function DashboardPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>删除</AlertDialogAction>
+            <AlertDialogCancel disabled={isDeleting}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              className={isDeleting ? "opacity-50 cursor-not-allowed" : ""}
+            >
+              {isDeleting ? "删除中..." : "删除"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

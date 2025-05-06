@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { PrismaClient } from "@prisma/client";
 import { getPublicUrl } from "./qiniu";
-import type { PhotoWithEmployee } from "./types";
+
+import { deleteFile } from "@/lib/qiniu";
 
 const prisma = new PrismaClient();
 
@@ -175,6 +176,32 @@ export async function updatePhotoStatus(
   }
 }
 
+// // Delete photo
+// export async function deletePhoto(id: string) {
+//   try {
+//     const photo = await prisma.photo.findUnique({
+//       where: { id },
+//     });
+
+//     if (!photo) {
+//       return { success: false, message: "照片不存在" };
+//     }
+
+//     // Delete from Qiniu
+//     await fetch(
+//       `/api/delete-photo?key=${encodeURIComponent(photo.key)}&id=${photo.id}`,
+//       {
+//         method: "DELETE",
+//       }
+//     );
+
+//     revalidatePath("/admin/dashboard");
+//     return { success: true };
+//   } catch (error) {
+//     console.error("Error deleting photo:", error);
+//     return { success: false, message: "删除照片时发生错误" };
+//   }
+// }
 // Delete photo
 export async function deletePhoto(id: string) {
   try {
@@ -186,13 +213,19 @@ export async function deletePhoto(id: string) {
       return { success: false, message: "照片不存在" };
     }
 
-    // Delete from Qiniu
-    await fetch(
-      `/api/delete-photo?key=${encodeURIComponent(photo.key)}&id=${photo.id}`,
-      {
-        method: "DELETE",
-      }
-    );
+    // 首先从数据库中删除照片记录
+    await prisma.photo.delete({
+      where: { id },
+    });
+
+    // 然后尝试从七牛云删除文件
+    try {
+      await deleteFile(photo.key);
+    } catch (error) {
+      console.error("Error deleting file from Qiniu:", error);
+      // 即使从七牛云删除失败，我们也已经从数据库中删除了记录
+      // 所以仍然返回成功
+    }
 
     revalidatePath("/admin/dashboard");
     return { success: true };
