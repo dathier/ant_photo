@@ -56,6 +56,7 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
+  RefreshCw,
 } from "lucide-react";
 import {
   checkAuth,
@@ -71,8 +72,10 @@ export default function DashboardPage() {
   const { toast } = useToast();
   const [photos, setPhotos] = useState<PhotoWithEmployee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoWithEmployee | null>(
     null
   );
@@ -112,6 +115,7 @@ export default function DashboardPage() {
 
       const result = await getPhotos(currentPage, pageSize, filters);
       setPhotos(result.photos);
+      setTotalCount(result.total);
       setTotalPages(Math.ceil(result.total / pageSize));
     } catch (error) {
       console.error("Failed to fetch photos:", error);
@@ -122,7 +126,17 @@ export default function DashboardPage() {
       });
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    toast({
+      title: "正在刷新数据",
+      description: "请稍候...",
+    });
+    await fetchPhotos();
   };
 
   const handleLogout = () => {
@@ -147,21 +161,33 @@ export default function DashboardPage() {
         const result = await deletePhoto(photoToDelete);
 
         if (result.success) {
+          // 从本地状态中移除已删除的照片
+          const updatedPhotos = photos.filter(
+            (photo) => photo.id !== photoToDelete
+          );
+          setPhotos(updatedPhotos);
+
+          // 更新总数
+          const newTotalCount = totalCount - 1;
+          setTotalCount(newTotalCount);
+
+          // 计算新的总页数
+          const newTotalPages = Math.ceil(newTotalCount / pageSize);
+          setTotalPages(newTotalPages);
+
+          // 如果当前页面没有照片了，且不是第一页，则返回上一页
+          if (
+            updatedPhotos.length === 0 &&
+            currentPage > 1 &&
+            currentPage > newTotalPages
+          ) {
+            setCurrentPage(currentPage - 1);
+          }
+
           toast({
             title: "删除成功",
             description: "照片已成功删除",
           });
-
-          // 从本地状态中移除已删除的照片
-          setPhotos(photos.filter((photo) => photo.id !== photoToDelete));
-
-          // 如果当前页面没有照片了，且不是第一页，则返回上一页
-          if (photos.length === 1 && currentPage > 1) {
-            setCurrentPage((prev) => prev - 1);
-          } else {
-            // 否则重新获取当前页面的照片
-            fetchPhotos();
-          }
         } else {
           toast({
             title: "删除失败",
@@ -248,20 +274,32 @@ export default function DashboardPage() {
   return (
     <div className="container py-4 mx-auto">
       {/* <div className="flex justify-center mb-6">
-        <Image
-          src="/logo.png"
-          alt="公司标志"
-          width={180}
-          height={60}
-          priority
-        />
+        <Image src="/logo.png" alt="公司标志" width={180} height={60} priority />
       </div> */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-2xl">员工照片管理</CardTitle>
-          <Button variant="outline" size="icon" onClick={handleLogout}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex space-x-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing || loading}
+              title="刷新数据"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleLogout}
+              title="退出登录"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* Search and Filter Section */}
